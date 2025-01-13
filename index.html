@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dự đoán khí hậu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #ffffff;
+            background: linear-gradient(135deg, #1e90ff, #87cefa);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        h1, h2, h3 {
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        form {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            width: 80%;
+            max-width: 600px;
+        }
+        label {
+            font-size: 1.1em;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-top: 5px;
+            border: none;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #32cd32;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #228b22;
+        }
+        #result {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+        #loadingMessage {
+            font-size: 1.2em;
+            color: #ffffff; /* Đổi màu thành trắng */
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: center;
+            animation: fadeIn 1s ease-in-out infinite;
+        }
+        ul {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 10px;
+            list-style: none;
+            line-height: 1.8;
+        }
+        ul li {
+            padding: 5px 0;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Dự đoán khí hậu</h1>
+    <form>
+        <label for="currentTemp">Nhiệt độ hiện tại (°C):</label>
+        <input type="number" id="currentTemp" step="0.1" value="20" placeholder="Ví dụ: 20" required><br><br>
+
+        <label for="initialCO2">Nồng độ CO₂ hiện tại (ppm):</label><input type="number" id="initialCO2" step="1" value="420" placeholder="Ví dụ: 420" required><br><br>
+
+        <label for="years">Số năm từ hiện tại đến tương lai (năm):</label>
+        <input type="number" id="years" step="1" value="20" placeholder="Ví dụ: 20" required><br><br>
+
+        <label for="initialHotDays">Số giờ nắng trong năm (giờ):</label>
+        <input type="number" id="initialHotDays" step="1" value="1000" placeholder="Ví dụ: 1000" required><br><br>
+
+        <label for="deltaN">Tốc độ thay đổi số giờ nắng trong ngày (∆N):</label>
+        <input type="number" id="deltaN" step="0.1" value="1.5" placeholder="Ví dụ: 5" required><br><br>
+
+        <label for="initialHumidity">Độ ẩm ban đầu (%):</label>
+        <input type="number" id="initialHumidity" step="0.1" value="60" placeholder="Ví dụ: 60" required><br><br>
+
+        <input type="hidden" id="deltaH" value="0.5">
+
+        <h3>Gợi ý Tốc độ thay đổi số giờ nắng trong ngày theo miền (∆N):</h3>
+        <ul>
+            <li>Miền Bắc: ΔN = 1,75</li>
+            <li>Miền Trung: ΔN = 2,0</li>
+            <li>Miền Nam: ΔN = 1,5</li>
+        </ul>
+        <p><strong>Lưu ý:</strong> Kết quả chỉ mang tính tương đối. Những giá trị này chỉ chính xác trong khoảng từ 1 đến 30 năm.</p>
+        <button type="button" onclick="calculateClimate()">Dự đoán</button>
+    </form>
+
+    <p id="loadingMessage" style="display: none;">Đang tính toán...</p>
+    <p id="result">Kết quả dự đoán sẽ hiển thị ở đây.</p>
+
+    <script>
+        function calculateClimate() {
+            const loadingMessage = document.getElementById('loadingMessage');
+            const result = document.getElementById('result');
+            
+            // Hiển thị hiệu ứng loading
+            loadingMessage.style.display = 'block';
+            result.innerText = ''; // Xóa kết quả cũ
+
+            // Giả lập quá trình tính toán (sử dụng setTimeout để mô phỏng)
+            setTimeout(() => {
+                let T0 = parseFloat(document.getElementById('currentTemp').value);
+                let C0 = parseFloat(document.getElementById('initialCO2').value);
+                let years = parseInt(document.getElementById('years').value);
+                let k = 3;
+                let N0 = parseFloat(document.getElementById('initialHotDays').value);
+                let deltaN = parseFloat(document.getElementById('deltaN').value);
+                let H0 = parseFloat(document.getElementById('initialHumidity').value);
+                let deltaH = parseFloat(document.getElementById('deltaH').value);
+
+                if (isNaN(T0) || isNaN(C0) || isNaN(years) || isNaN(N0) || isNaN(deltaN) || isNaN(H0) || 
+                    C0 <= 0 || years <= 0) {
+                    result.innerText = 'Vui lòng nhập đầy đủ và hợp lệ các giá trị.';
+                    loadingMessage.style.display = 'none'; // Ẩn hiệu ứng loading
+                    return;
+                }
+
+                let Cf = C0 + 2.5 * years;let deltaT = k * Math.log(Cf / C0);
+                let Tf = T0 + deltaT;
+                let N = N0 + deltaN * years;
+                let H = H0 + deltaH * years;
+
+                if (H - H0 > 0.7 * years) {
+                    H = H0 + 0.7 * years;
+                }
+
+                result.innerText = `Nồng độ CO₂ tương lai: ${Cf.toFixed(2)} ppm\n` +
+                    `Nhiệt độ dự đoán tăng lên: ${deltaT.toFixed(2)} °C\n` +
+                    `Nhiệt độ trong tương lai: ${Tf.toFixed(2)} °C\n` +
+                    `Số giờ nắng nóng trong năm: ${N.toFixed(2)} giờ\n` +
+                    `Độ ẩm trong tương lai: ${H.toFixed(2)}%`;
+
+                // Ẩn hiệu ứng loading
+                loadingMessage.style.display = 'none';
+            }, 2000); // Mô phỏng quá trình xử lý trong 2 giây
+        }
+    </script>
+</body>
+</html>
