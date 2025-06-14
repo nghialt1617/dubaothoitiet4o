@@ -1,175 +1,189 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dự đoán khí hậu</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            color: #ffffff;
-            background: linear-gradient(135deg, #1e90ff, #87cefa);
-            background-attachment: fixed;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        h1, h2, h3 {
-            text-align: center;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        form {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-            width: 80%;
-            max-width: 600px;
-        }
-        label {
-            font-size: 1.1em;
-            margin-top: 10px;
-            display: inline-block;
-        }
-        input {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-top: 5px;
-            border: none;
-            border-radius: 5px;
-        }
-        button {
-            background-color: #32cd32;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-top: 20px;
-        }
-        button:hover {
-            background-color: #228b22;
-        }
-        #result {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-            font-size: 1.1em;
-            line-height: 1.6;
-        }
-        #loadingMessage {
-            font-size: 1.2em;
-            color: #ffffff; /* Đổi màu thành trắng */
-            font-weight: bold;
-            margin-top: 20px;
-            text-align: center;
-            animation: fadeIn 1s ease-in-out infinite;
-        }
-        ul {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 10px;
-            list-style: none;
-            line-height: 1.8;
-        }
-        ul li {
-            padding: 5px 0;
-        }
-        @keyframes fadeIn {
-            0% { opacity: 0; }
-            50% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dự đoán nhiệt độ và nồng độ CO2</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+    }
+    #map {
+      width: 50%;
+      height: 100vh;
+    }
+    #formContainer {
+      width: 50%;
+      padding: 20px;
+      background: linear-gradient(135deg, #1e90ff, #87cefa);
+      color: #fff;
+      overflow-y: auto;
+    }
+    form {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: none;
+    }
+    button {
+      background-color: #32cd32;
+      color: white;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #228b22;
+    }
+    #result {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    #loadingMessage {
+      margin-top: 15px;
+      animation: fadeIn 1s infinite;
+      text-align: center;
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; }
+    }
+  </style>
 </head>
 <body>
-    <h1>Dự đoán khí hậu</h1>
+  <div id="map"></div>
+
+  <div id="formContainer">
+    <h1>Dự đoán nhiệt độ và nồng độ CO2</h1>
     <form>
-        <label for="currentTemp">Nhiệt độ hiện tại (°C):</label>
-        <input type="number" id="currentTemp" step="0.1" value="20" placeholder="Ví dụ: 20" required><br><br>
+      <label for="provinceInput">Nhập tỉnh/thành:</label>
+      <input list="provinceList" id="provinceInput" placeholder="VD: Hà Nội" oninput="updateCO2ByProvinceInput()">
+      <datalist id="provinceList"></datalist>
 
-        <label for="initialCO2">Nồng độ CO₂ hiện tại (ppm):</label><input type="number" id="initialCO2" step="1" value="420" placeholder="Ví dụ: 420" required><br><br>
+      <label for="initialCO2">Nồng độ CO₂ hiện tại (ppm):</label>
+      <input type="number" id="initialCO2" value="420" step="1">
 
-        <label for="years">Số năm từ hiện tại đến tương lai (năm):</label>
-        <input type="number" id="years" step="1" value="20" placeholder="Ví dụ: 20" required><br><br>
+      <label for="currentTemp">Nhiệt độ hiện tại (°C):</label>
+      <input type="number" id="currentTemp" value="25" step="0.1">
 
-        <label for="initialHotDays">Số giờ nắng trong năm (giờ):</label>
-        <input type="number" id="initialHotDays" step="1" value="1000" placeholder="Ví dụ: 1000" required><br><br>
+      <label for="years">Số năm tới (năm):</label>
+      <input type="number" id="years" value="2" step="1">
 
-        <label for="deltaN">Tốc độ thay đổi số giờ nắng trong ngày (∆N):</label>
-        <input type="number" id="deltaN" step="0.1" value="1.5" placeholder="Ví dụ: 5" required><br><br>
-
-        <label for="initialHumidity">Độ ẩm ban đầu (%):</label>
-        <input type="number" id="initialHumidity" step="0.1" value="60" placeholder="Ví dụ: 60" required><br><br>
-
-        <input type="hidden" id="deltaH" value="0.5">
-
-        <h3>Gợi ý Tốc độ thay đổi số giờ nắng trong ngày theo miền (∆N):</h3>
-        <ul>
-            <li>Miền Bắc: ΔN = 1,75</li>
-            <li>Miền Trung: ΔN = 2,0</li>
-            <li>Miền Nam: ΔN = 1,5</li>
-        </ul>
-        <p><strong>Lưu ý:</strong> Kết quả chỉ mang tính tương đối. Những giá trị này chỉ chính xác trong khoảng từ 1 đến 30 năm.</p>
-        <button type="button" onclick="calculateClimate()">Dự đoán</button>
+      <p><strong>Lưu ý:</strong> Kết quả mang tính tương đối. Chính xác nhất trong 1–5 năm.</p>
+      <button type="button" onclick="calculateClimate()">Dự đoán</button>
     </form>
+    <p id="loadingMessage" style="display:none;">Đang tính toán...</p>
+    <p id="result">Kết quả sẽ hiển thị tại đây.</p>
+  </div>
 
-    <p id="loadingMessage" style="display: none;">Đang tính toán...</p>
-    <p id="result">Kết quả dự đoán sẽ hiển thị ở đây.</p>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const co2Data = {
+      "An Giang": [10.5216, 105.1259, 426], "Bà Rịa - Vũng Tàu": [10.5417, 107.2428, 424],
+  "Bạc Liêu": [9.2941, 105.7278, 423], "Bắc Giang": [21.2731, 106.1946, 418],
+  "Bắc Kạn": [22.1462, 105.8348, 414], "Bắc Ninh": [21.1861, 106.0764, 420],
+  "Bến Tre": [10.2415, 106.3756, 425], "Bình Định": [14.1665, 108.9027, 417],
+  "Bình Dương": [10.9804, 106.6519, 429], "Bình Phước": [11.7512, 106.7235, 428],
+  "Bình Thuận": [11.0904, 108.0721, 416], "Cà Mau": [9.1790, 105.1500, 422],
+  "Cần Thơ": [10.0452, 105.7469, 427], "Cao Bằng": [22.6657, 106.2570, 415],
+  "Đà Nẵng": [16.0544, 108.2022, 419], "Đắk Lắk": [12.7100, 108.2378, 420],
+  "Đắk Nông": [12.2644, 107.6098, 418], "Điện Biên": [21.3974, 103.0168, 413],
+  "Đồng Nai": [10.9447, 106.8243, 431], "Đồng Tháp": [10.5332, 105.6882, 424],
+  "Gia Lai": [13.8079, 108.1094, 417], "Hà Giang": [22.8233, 104.9836, 414],
+  "Hà Nam": [20.5830, 105.9222, 421], "Hà Nội": [21.0285, 105.8542, 422],
+  "Hà Tĩnh": [18.3559, 105.8875, 419], "Hải Dương": [20.9373, 106.3140, 420],
+  "Hải Phòng": [20.8449, 106.6881, 421], "Hậu Giang": [9.7579, 105.6410, 425],
+  "Hòa Bình": [20.8170, 105.3376, 418], "Hưng Yên": [20.6464, 106.0511, 422],
+  "Khánh Hòa": [12.2388, 109.1967, 419], "Kiên Giang": [9.9348, 105.0847, 426],
+  "Kon Tum": [14.3492, 108.0000, 416], "Lai Châu": [22.3862, 103.4702, 412],
+  "Lâm Đồng": [11.5753, 108.1429, 420], "Lạng Sơn": [21.8537, 106.7615, 417],
+  "Lào Cai": [22.4800, 103.9700, 415], "Long An": [10.5430, 106.4116, 423],
+  "Nam Định": [20.4386, 106.1621, 421], "Nghệ An": [19.2342, 104.9200, 419],
+  "Ninh Bình": [20.2539, 105.9745, 420], "Ninh Thuận": [11.6739, 108.9861, 418],
+  "Phú Thọ": [21.2684, 105.2046, 419], "Phú Yên": [13.0882, 109.0929, 418],
+  "Quảng Bình": [17.6103, 106.3487, 419], "Quảng Nam": [15.5393, 108.0191, 418],
+  "Quảng Ngãi": [15.1205, 108.7922, 419], "Quảng Ninh": [21.0064, 107.2926, 420],
+  "Quảng Trị": [16.7403, 107.1850, 418], "Sóc Trăng": [9.6030, 105.9732, 425],
+  "Sơn La": [21.3275, 103.9144, 414], "Tây Ninh": [11.3226, 106.0981, 426],
+  "Thái Bình": [20.4463, 106.3366, 421], "Thái Nguyên": [21.5672, 105.8252, 419],
+  "Thanh Hóa": [19.8067, 105.7852, 419], "Thừa Thiên Huế": [16.4637, 107.5909, 418],
+  "Tiền Giang": [10.4493, 106.3421, 424], "TP Hồ Chí Minh": [10.7769, 106.7009, 430],
+  "Trà Vinh": [9.8127, 106.2993, 424], "Tuyên Quang": [21.8239, 105.2180, 415],
+  "Vĩnh Long": [10.2538, 105.9595, 425], "Vĩnh Phúc": [21.3089, 105.6044, 420],
+  "Yên Bái": [21.7051, 104.8709, 417]
+    };
 
-    <script>
-        function calculateClimate() {
-            const loadingMessage = document.getElementById('loadingMessage');
-            const result = document.getElementById('result');
-            
-            // Hiển thị hiệu ứng loading
-            loadingMessage.style.display = 'block';
-            result.innerText = ''; // Xóa kết quả cũ
+    // Khởi tạo bản đồ
+    const map = L.map('map').setView([16.5, 106], 6); // trung tâm VN
 
-            // Giả lập quá trình tính toán (sử dụng setTimeout để mô phỏng)
-            setTimeout(() => {
-                let T0 = parseFloat(document.getElementById('currentTemp').value);
-                let C0 = parseFloat(document.getElementById('initialCO2').value);
-                let years = parseInt(document.getElementById('years').value);
-                let k = 3;
-                let N0 = parseFloat(document.getElementById('initialHotDays').value);
-                let deltaN = parseFloat(document.getElementById('deltaN').value);
-                let H0 = parseFloat(document.getElementById('initialHumidity').value);
-                let deltaH = parseFloat(document.getElementById('deltaH').value);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
-                if (isNaN(T0) || isNaN(C0) || isNaN(years) || isNaN(N0) || isNaN(deltaN) || isNaN(H0) || 
-                    C0 <= 0 || years <= 0) {
-                    result.innerText = 'Vui lòng nhập đầy đủ và hợp lệ các giá trị.';
-                    loadingMessage.style.display = 'none'; // Ẩn hiệu ứng loading
-                    return;
-                }
+    const marker = L.marker([16.5, 106]).addTo(map).bindPopup("Việt Nam");
 
-                let Cf = C0 + 2.5 * years;let deltaT = k * Math.log(Cf / C0);
-                let Tf = T0 + deltaT;
-                let N = N0 + deltaN * years;
-                let H = H0 + deltaH * years;
+    // Thêm danh sách tỉnh vào datalist
+    const datalist = document.getElementById('provinceList');
+    for (let province in co2Data) {
+      let opt = document.createElement('option');
+      opt.value = province;
+      datalist.appendChild(opt);
+    }
 
-                if (H - H0 > 0.7 * years) {
-                    H = H0 + 0.7 * years;
-                }
+    const provinceInput = document.getElementById('provinceInput');
 
-                result.innerText = `Nồng độ CO₂ tương lai: ${Cf.toFixed(2)} ppm\n` +
-                    `Nhiệt độ dự đoán tăng lên: ${deltaT.toFixed(2)} °C\n` +
-                    `Nhiệt độ trong tương lai: ${Tf.toFixed(2)} °C\n` +
-                    `Số giờ nắng nóng trong năm: ${N.toFixed(2)} giờ\n` +
-                    `Độ ẩm trong tương lai: ${H.toFixed(2)}%`;
+    function updateCO2ByProvinceInput() {
+      let selected = provinceInput.value.trim();
+      if (co2Data[selected]) {
+        const [lat, lng, co2] = co2Data[selected];
+        document.getElementById('initialCO2').value = co2;
+        map.setView([lat, lng], 9);
+        marker.setLatLng([lat, lng]).bindPopup(`${selected}<br>Nồng độ CO₂: ${co2} ppm`).openPopup();
+      }
+    }
 
-                // Ẩn hiệu ứng loading
-                loadingMessage.style.display = 'none';
-            }, 2000); // Mô phỏng quá trình xử lý trong 2 giây
+    function calculateClimate() {
+      const loadingMessage = document.getElementById('loadingMessage');
+      const result = document.getElementById('result');
+
+      loadingMessage.style.display = 'block';
+      result.innerText = '';
+
+      setTimeout(() => {
+        let T0 = parseFloat(document.getElementById('currentTemp').value);
+        let C0 = parseFloat(document.getElementById('initialCO2').value);
+        let years = parseInt(document.getElementById('years').value);
+        let k = 3;
+
+        if (isNaN(T0) || isNaN(C0) || isNaN(years) || C0 <= 0 || years <= 0) {
+          result.innerText = 'Vui lòng nhập đầy đủ và hợp lệ các giá trị.';
+          loadingMessage.style.display = 'none';
+          return;
         }
-    </script>
+
+        let Cf = C0 + 2.5 * years;
+        let deltaT = k * Math.log(Cf / C0);
+        let Tf = T0 + deltaT;
+
+        result.innerText = `Nồng độ CO₂ tương lai: ${Cf.toFixed(2)} ppm\n` +
+                           `Tăng nhiệt độ dự đoán: ${deltaT.toFixed(2)} °C\n` +
+                           `Nhiệt độ tương lai: ${Tf.toFixed(2)} °C`;
+
+        loadingMessage.style.display = 'none';
+      }, 1000);
+    }
+  </script>
 </body>
 </html>
