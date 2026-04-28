@@ -3,246 +3,137 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dự đoán khí hậu Việt Nam</title>
-
+<title>AI Climate Predictor Vietnam Pro Max</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
-body {
-  margin: 0;
-  font-family: Arial;
-  display: flex;
-  height: 100vh;
-}
-#map { width: 50%; }
-#panel {
-  width: 50%;
-  padding: 20px;
-  background: linear-gradient(135deg,#1e90ff,#87cefa);
-  color: white;
-  overflow-y: auto;
-}
-input, button {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
-  border-radius: 5px;
-  border: none;
-}
-button {
-  background: #32cd32;
-  color: white;
-}
-#result {
-  margin-top: 15px;
-  padding: 10px;
-  border-radius: 10px;
-}
-canvas {
-  background: white;
-  margin-top: 20px;
-  border-radius: 10px;
-}
+*{box-sizing:border-box;font-family:Segoe UI,Tahoma,sans-serif}
+body{margin:0;background:#06121f;color:#fff;display:flex;height:100vh;overflow:hidden}
+#map{width:55%;height:100vh}
+#panel{width:45%;padding:20px;background:linear-gradient(180deg,#0d1b2a,#1b263b,#415a77);overflow-y:auto}
+h1{margin:0;font-size:28px;text-align:center;text-shadow:0 0 15px cyan}
+.subtitle{text-align:center;font-size:13px;opacity:.8;margin-bottom:15px}
+.card{background:rgba(255,255,255,.08);backdrop-filter:blur(8px);padding:15px;border-radius:18px;margin-top:15px;box-shadow:0 0 15px rgba(0,255,255,.15)}
+input,button{width:100%;padding:12px;margin-top:10px;border:none;border-radius:10px;font-size:15px}
+input{background:#dfefff}
+button{background:linear-gradient(90deg,#00c6ff,#0072ff);color:white;font-weight:bold;cursor:pointer}
+button:hover{transform:scale(1.02)}
+#result{font-size:18px;font-weight:bold;text-align:center;padding:12px;border-radius:12px;margin-top:15px}
+#analysis{line-height:1.7;font-size:14px}
+canvas{background:#fff;border-radius:15px;margin-top:15px;padding:10px}
+.legend{display:flex;justify-content:space-between;font-size:12px;margin-top:10px}
+.badge{padding:5px 10px;border-radius:10px;background:rgba(255,255,255,.12)}
 </style>
 </head>
-
 <body>
-
 <div id="map"></div>
-
 <div id="panel">
-<h2>Dự đoán CO₂ & Nhiệt độ (34 tỉnh)</h2>
+<h1>🌍 AI CLIMATE PREDICTOR VN</h1>
+<div class="subtitle">Mô phỏng phát thải CO₂ - Nóng lên toàn cầu - Phân tích AI 34 tỉnh thành Việt Nam</div>
 
-<input list="provinceList" id="provinceInput" placeholder="Nhập tỉnh (không cần dấu)">
+<div class="card">
+<input list="provinceList" id="provinceInput" placeholder="Nhập tỉnh hoặc click trên bản đồ">
 <datalist id="provinceList"></datalist>
+<input type="number" id="initialCO2" value="420" placeholder="CO2 hiện tại">
+<input type="number" id="currentTemp" value="25" placeholder="Nhiệt độ hiện tại">
+<input type="number" id="years" value="10" placeholder="Số năm dự đoán">
+<button onclick="calculate()">🚀 AI DỰ ĐOÁN KHÍ HẬU</button>
+</div>
 
-<input type="number" id="initialCO2" value="420">
-<input type="number" id="currentTemp" value="25">
-<input type="number" id="years" value="5">
-
-<button onclick="calculate()">Dự đoán</button>
-
-<div id="result"></div>
+<div id="result" class="card">Chưa dự đoán</div>
+<div id="analysis" class="card">AI đang chờ dữ liệu...</div>
 <canvas id="chart"></canvas>
+<div class="legend">
+<div class="badge">🟢 An toàn</div>
+<div class="badge">🟠 Cảnh báo</div>
+<div class="badge">🔴 Nguy hiểm</div>
+</div>
 </div>
 
 <script>
-
-// ===== DATA 34 TỈNH =====
-const co2Data = {
-  "Tuyên Quang":[22.2,105.2,414],
-  "Cao Bằng":[22.7,106.2,415],
-  "Lai Châu":[22.4,103.5,412],
-  "Lào Cai":[22.5,104.0,415],
-  "Thái Nguyên":[21.6,105.8,419],
-  "Điện Biên":[21.4,103.0,413],
-  "Lạng Sơn":[21.8,106.7,417],
-  "Sơn La":[21.3,103.9,414],
-  "Phú Thọ":[21.3,105.2,419],
-  "Bắc Ninh":[21.2,106.1,420],
-  "Quảng Ninh":[21.0,107.3,420],
-  "Hà Nội":[21.0,105.8,422],
-
-  "Hải Phòng":[20.8,106.7,421],
-  "Hưng Yên":[20.6,106.0,422],
-  "Ninh Bình":[20.2,105.9,420],
-
-  "Thanh Hóa":[19.8,105.8,419],
-  "Nghệ An":[19.2,104.9,419],
-  "Hà Tĩnh":[18.3,105.9,419],
-
-  "Quảng Trị":[16.7,107.1,418],
-  "Huế":[16.5,107.6,418],
-
-  "Đà Nẵng":[16.0,108.2,419],
-  "Quảng Ngãi":[15.1,108.8,419],
-  "Gia Lai":[13.8,108.1,417],
-
-  "Khánh Hòa":[12.2,109.2,419],
-  "Lâm Đồng":[11.5,108.1,420],
-  "Đắk Lắk":[12.7,108.2,420],
-
-  "Đồng Nai":[10.9,106.8,431],
-  "TP Hồ Chí Minh":[10.8,106.7,430],
-
-  "Tây Ninh":[11.3,106.1,426],
-  "Cần Thơ":[10.0,105.7,427],
-
-  "Vĩnh Long":[10.2,105.9,425],
-  "Đồng Tháp":[10.5,105.7,424],
-
-  "An Giang":[10.5,105.1,426],
-  "Cà Mau":[9.1,105.1,422]
+const co2Data={
+"Tuyên Quang":[22.2,105.2,414,24.0,35],"Cao Bằng":[22.7,106.2,415,23.5,30],"Lai Châu":[22.4,103.5,412,22.8,28],"Lào Cai":[22.5,104.0,415,23.2,34],
+"Thái Nguyên":[21.6,105.8,419,24.8,60],"Điện Biên":[21.4,103.0,413,23.0,29],"Lạng Sơn":[21.8,106.7,417,23.7,33],"Sơn La":[21.3,103.9,414,23.4,31],
+"Phú Thọ":[21.3,105.2,419,24.5,45],"Bắc Ninh":[21.2,106.1,423,26.1,85],"Quảng Ninh":[21.0,107.3,422,25.7,78],"Hà Nội":[21.0,105.8,428,27.1,95],
+"Hải Phòng":[20.8,106.7,425,26.3,82],"Hưng Yên":[20.6,106.0,423,25.9,73],"Ninh Bình":[20.2,105.9,420,25.4,52],"Thanh Hóa":[19.8,105.8,420,25.6,58],
+"Nghệ An":[19.2,104.9,419,25.5,55],"Hà Tĩnh":[18.3,105.9,419,25.4,53],"Quảng Trị":[16.7,107.1,418,25.8,48],"Huế":[16.5,107.6,419,25.9,50],
+"Đà Nẵng":[16.0,108.2,421,26.5,74],"Quảng Ngãi":[15.1,108.8,419,25.9,49],"Gia Lai":[13.8,108.1,417,24.3,38],"Khánh Hòa":[12.2,109.2,421,26.6,71],
+"Lâm Đồng":[11.5,108.1,416,22.5,33],"Đắk Lắk":[12.7,108.2,419,24.9,43],"Đồng Nai":[10.9,106.8,432,27.6,97],"TP Hồ Chí Minh":[10.8,106.7,431,28.1,99],
+"Tây Ninh":[11.3,106.1,426,27.0,76],"Cần Thơ":[10.0,105.7,427,27.4,80],"Vĩnh Long":[10.2,105.9,425,27.2,72],"Đồng Tháp":[10.5,105.7,424,27.1,69],"An Giang":[10.5,105.1,426,27.3,74],"Cà Mau":[9.1,105.1,422,27.0,60]
 };
 
-// ===== NORMALIZE =====
-function normalize(str){
-  return str.toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g,"")
-    .replace(/đ/g,"d");
-}
+function normalize(str){return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');}
+const provinceMap={}; for(let p in co2Data){provinceMap[normalize(p)]=p;}
+const provinceInput=document.getElementById('provinceInput');
+const initialCO2=document.getElementById('initialCO2');
+const currentTemp=document.getElementById('currentTemp');
+const result=document.getElementById('result');
+const analysis=document.getElementById('analysis');
 
-const provinceMap = {};
+for(let p in co2Data){let o=document.createElement('option');o.value=p;provinceList.appendChild(o);}
+
+const map=L.map('map').setView([16,106],6);
+L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png').addTo(map);
+let marker=L.circleMarker([16,106],{radius:12,color:'white',fillColor:'cyan',fillOpacity:.7}).addTo(map);
+
 for(let p in co2Data){
-  provinceMap[normalize(p)] = p;
+ let [lat,lng,co2]=co2Data[p];
+ let color=co2<418?'#00ff99':co2<425?'orange':'red';
+ L.circle([lat,lng],{radius:30000,color:color,fillColor:color,fillOpacity:.35})
+ .bindPopup(`<b>${p}</b><br>CO₂ hiện tại: ${co2} ppm`)
+ .addTo(map);
 }
 
-// ===== LOAD LIST =====
-const datalist = document.getElementById("provinceList");
-for(let p in co2Data){
-  let o = document.createElement("option");
-  o.value = p;
-  datalist.appendChild(o);
+map.on('click',e=>{
+ let min=999,selected=null;
+ for(let p in co2Data){let [lat,lng]=co2Data[p]; let d=Math.sqrt((lat-e.latlng.lat)**2+(lng-e.latlng.lng)**2); if(d<min){min=d;selected=p;}}
+ if(selected) loadProvince(selected);
+});
+provinceInput.addEventListener('input',()=>{let v=normalize(provinceInput.value); if(provinceMap[v]) loadProvince(provinceMap[v]);});
+
+function loadProvince(name){
+ provinceInput.value=name;
+ let [lat,lng,co2,temp]=co2Data[name];
+ initialCO2.value=co2;
+ currentTemp.value=temp;
+ map.setView([lat,lng],8);
+ marker.setLatLng([lat,lng]).bindPopup(name).openPopup();
 }
 
-// ===== MAP =====
-const map = L.map('map').setView([16,106],6);
-
-// tile đẹp hơn
-L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap'
-}).addTo(map);
-
-// marker đẹp
-const marker = L.circleMarker([16,106], {
-  radius: 10,
-  color: "red",
-  fillColor: "#f03",
-  fillOpacity: 0.5
-}).addTo(map);
-
-// click map
-map.on("click", function(e){
-  let min=999, selected=null;
-
-  for(let p in co2Data){
-    let [lat,lng]=co2Data[p];
-    let d=Math.sqrt((lat-e.latlng.lat)**2+(lng-e.latlng.lng)**2);
-    if(d<min){
-      min=d;
-      selected=p;
-    }
-  }
-
-  if(selected){
-    provinceInput.value=selected;
-    initialCO2.value=co2Data[selected][2];
-
-    let [lat,lng]=co2Data[selected];
-    map.setView([lat,lng],9);
-
-    marker.setLatLng([lat,lng])
-      .bindPopup(selected)
-      .openPopup();
-  }
-});
-
-// input
-provinceInput.addEventListener("input",()=>{
-  let val=normalize(provinceInput.value);
-  if(provinceMap[val]){
-    let name=provinceMap[val];
-    initialCO2.value=co2Data[name][2];
-
-    let [lat,lng]=co2Data[name];
-    map.setView([lat,lng],9);
-    marker.setLatLng([lat,lng]);
-  }
-});
-
-// ===== CALCULATE =====
 let chart;
-
 function calculate(){
-let T0=parseFloat(currentTemp.value);
-let C0=parseFloat(initialCO2.value);
-let years=parseInt(document.getElementById("years").value);
-
-if(!T0||!C0||!years){
-  result.innerText="Sai dữ liệu!";
-  return;
+ let province=provinceInput.value;
+ let T0=parseFloat(currentTemp.value),C0=parseFloat(initialCO2.value),years=parseInt(document.getElementById('years').value);
+ if(!T0||!C0||!years){result.innerHTML='Sai dữ liệu';return;}
+ let k=2.9;
+ let urban=province&&co2Data[province]?co2Data[province][4]/100:0.5;
+ let growth=1.8+urban*2.2;
+ let labels=[],temps=[],co2s=[];
+ for(let i=0;i<=years;i++){
+   let Ci=C0+growth*i;
+   let Ti=T0+k*Math.log(Ci/C0)+(urban*0.6*i/years);
+   labels.push('Năm '+i); temps.push(Ti.toFixed(2)); co2s.push(Ci.toFixed(1));
+ }
+ let Tf=parseFloat(temps[temps.length-1]); let Cf=parseFloat(co2s[co2s.length-1]);
+ let risk = Tf>=31?'🔴 NGUY HIỂM CAO':Tf>=28?'🟠 CẢNH BÁO NÓNG LÊN':'🟢 TƯƠNG ĐỐI ỔN';
+ result.innerHTML=`<b>${province||'Khu vực chọn'}</b><br>CO₂ tương lai: ${Cf} ppm<br>Nhiệt độ dự kiến: ${Tf} °C<br>${risk}`;
+ result.style.background=Tf>=31?'rgba(255,0,0,.3)':Tf>=28?'rgba(255,165,0,.3)':'rgba(0,255,100,.2)';
+ analysis.innerHTML=`🤖 AI PHÂN TÍCH:<br>
+ • Tốc độ đô thị hóa ảnh hưởng mạnh đến tích tụ khí CO₂.<br>
+ • Sau ${years} năm, khu vực này tăng khoảng <b>${(Tf-T0).toFixed(2)}°C</b>.<br>
+ • Nguy cơ: đảo nhiệt đô thị, khô hạn cục bộ, tăng nhu cầu điện.<br>
+ • Khuyến nghị: tăng cây xanh, giảm phương tiện phát thải, quy hoạch bền vững.`;
+ if(chart) chart.destroy();
+ chart=new Chart(document.getElementById('chart'),{
+ type:'line',
+ data:{labels:labels,datasets:[
+ {label:'Nhiệt độ °C',data:temps,borderWidth:3,tension:.4},
+ {label:'CO₂ ppm',data:co2s,borderWidth:3,tension:.4}
+ ]},
+ options:{responsive:true,plugins:{legend:{labels:{color:'black'}}}}
+ });
 }
-
-let k=2.8, growth=2.2;
-
-let labels=[],temps=[],co2s=[];
-
-for(let i=0;i<=years;i++){
-  let Ci=C0+growth*i;
-  let Ti=T0+k*Math.log(Ci/C0);
-
-  labels.push("Năm "+i);
-  temps.push(Ti);
-  co2s.push(Ci);
-}
-
-let Tf=temps[temps.length-1];
-let Cf=co2s[co2s.length-1];
-
-result.innerText=`CO2: ${Cf.toFixed(1)} ppm | Nhiệt độ: ${Tf.toFixed(2)} °C`;
-
-if(Tf>=30) result.style.background="red";
-else if(Tf>=27) result.style.background="orange";
-else result.style.background="green";
-
-if(chart) chart.destroy();
-
-chart=new Chart(document.getElementById("chart"),{
-  type:"line",
-  data:{
-    labels:labels,
-    datasets:[
-      {label:"Nhiệt độ",data:temps},
-      {label:"CO2",data:co2s}
-    ]
-  }
-});
-}
-
 </script>
-
 </body>
 </html>
